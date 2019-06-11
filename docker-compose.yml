@@ -1,0 +1,33 @@
+version: "3.4"
+services:
+
+  api: 
+    build: .docker
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: ./
+        target: /usr/share/src
+    ports:
+      - 1234:80
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:3.6.4
+    restart: on-failure
+    environment:
+      - MONGO_DATA_DIR=/data/db
+    volumes:
+      - type: volume
+        source: dbdata
+        target: /data/db
+        volume:
+          nocopy: true
+    command: mongod --smallfiles --logpath=/dev/null
+
+volumes:
+  dbdata:
+    name: "nukr-dbdata"
