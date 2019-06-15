@@ -1,4 +1,16 @@
-version: "3.4"
+version: "3.6"
+
+networks:
+  nukr.net:
+
+volumes:
+  nukr.elastic:
+    name: "nukr-elastic"
+    driver: "local"
+  nukr.mongo:
+    name: "nukr-mongo"
+    driver: "local"
+
 services:
 
   api: 
@@ -7,27 +19,68 @@ services:
     volumes:
       - type: bind
         source: ./
-        target: /usr/share/src
+        target: /src
     ports:
-      - 1234:80
+      - 3000:1234
+    command:
+      - repl
     links:
-      - mongodb
+      - mongo
     depends_on:
-      - mongodb
+      - mongo
+    networks:
+      - nukr.net
 
-  mongodb:
+  mongo:
     image: mongo:3.6.4
     restart: on-failure
     environment:
       - MONGO_DATA_DIR=/data/db
     volumes:
       - type: volume
-        source: dbdata
+        source: nukr.mongo
         target: /data/db
         volume:
           nocopy: true
     command: mongod --smallfiles --logpath=/dev/null
+    networks:
+      - nukr.net
 
-volumes:
-  dbdata:
-    name: "nukr-dbdata"
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - type: volume
+        source: nukr.elastic
+        target: /usr/share/elasticsearch/data
+    environment:
+      - http.host=0.0.0.0
+      - cluster.name=cluster-nukr
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - 9200:9200
+    networks:
+      - nukr.net
+
+  graylog:
+    image: graylog/graylog:3.0.2
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=ggergergegtr23frf2f3f34f34f34f23f2
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=elasticsearch
+    ports:
+      - 9000:9000
+      - 12201:12201/udp
+      - 514:514/udp
+    depends_on:
+      - mongo
+      - elasticsearch
+    links:
+      - mongo
+      - elasticsearch
+    networks:
+      - nukr.net
