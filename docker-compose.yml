@@ -4,11 +4,8 @@ networks:
   nukr.net:
 
 volumes:
-  nukr.elastic:
-    name: "nukr-elastic"
-    driver: "local"
-  nukr.mongo:
-    name: "nukr-mongo"
+  nukr.postgres:
+    name: "nukr-postgres"
     driver: "local"
 
 services:
@@ -21,66 +18,26 @@ services:
         source: ./
         target: /src
     ports:
-      - 3000:1234
-    command:
-      - repl
+      - 3000:3000 # Project port default
+      - 12345:12345 # lein relp server
     links:
-      - mongo
+      - db
     depends_on:
-      - mongo
+      - db
     networks:
       - nukr.net
-
-  mongo:
-    image: mongo:3.6.4
+  
+  db:
+    image: postgres:11.3
     restart: on-failure
-    environment:
-      - MONGO_DATA_DIR=/data/db
     volumes:
       - type: volume
-        source: nukr.mongo
-        target: /data/db
+        source: nukr.postgres
+        target: /var/lib/postgresql/data
         volume:
           nocopy: true
-    command: mongod --smallfiles --logpath=/dev/null
-    networks:
-      - nukr.net
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.3
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - type: volume
-        source: nukr.elastic
-        target: /usr/share/elasticsearch/data
-    environment:
-      - http.host=0.0.0.0
-      - cluster.name=cluster-nukr
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - 9200:9200
-    networks:
-      - nukr.net
-
-  graylog:
-    image: graylog/graylog:3.0.2
-    environment:
-      - GRAYLOG_PASSWORD_SECRET=ggergergegtr23frf2f3f34f34f34f23f2
-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-      - GRAYLOG_ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_HOSTS=elasticsearch
-    ports:
-      - 9000:9000
-      - 12201:12201/udp
-      - 514:514/udp
-    depends_on:
-      - mongo
-      - elasticsearch
-    links:
-      - mongo
-      - elasticsearch
+      - type: bind
+        source: ./script/init_database.sql
+        target: /docker-entrypoint-initdb.d/init_database.sql
     networks:
       - nukr.net
