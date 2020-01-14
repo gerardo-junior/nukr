@@ -11,7 +11,7 @@ volumes:
 services:
 
   api: 
-    build: .docker
+    image: gerardojunior/clojure:stable
     restart: on-failure
     volumes:
       - type: bind
